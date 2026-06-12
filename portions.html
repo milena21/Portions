@@ -1,0 +1,288 @@
+	<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
+  <meta name="theme-color" content="#f5f5f7" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Food Tracker" />
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+
+  <title>Food Tracker</title>
+
+  <style>
+    :root {
+      --bg: #f5f5f7;
+      --card: #ffffff;
+      --text: #1c1c1e;
+      --muted: #6e6e73;
+      --blue: #007aff;
+      --blue-light: rgba(0, 122, 255, 0.14);
+      --red: #ff3b30;
+      --red-light: rgba(255, 59, 48, 0.14);
+      --border: #e5e5ea;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 20px 16px 40px;
+    }
+
+    h1 {
+      margin: 10px 0 20px;
+      font-size: 32px;
+      line-height: 1.1;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .name {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .total {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    button {
+      appearance: none;
+      border: none;
+      border-radius: 12px;
+      min-height: 46px;
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .plus {
+      background: var(--blue-light);
+    }
+
+    .minus {
+      background: var(--red-light);
+    }
+
+    .summary {
+      text-align: center;
+      padding: 20px;
+    }
+
+    .summary h2 {
+      margin: 0 0 10px;
+      font-size: 20px;
+    }
+
+    .grand-total {
+      font-size: 40px;
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+
+    .reset-btn {
+      width: 100%;
+      background: var(--red);
+      color: white;
+    }
+
+    .note {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    @media (max-width: 420px) {
+      h1 {
+        font-size: 28px;
+      }
+
+      .button-row {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Food Tracker</h1>
+    <div id="app"></div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "foodTrackerCategories";
+    const DATE_KEY = "foodTrackerLastDate";
+
+    const defaultCategories = [
+      { name: "Fat", total: 0 },
+      { name: "Carbs", total: 0 },
+      { name: "Vegetables", total: 0 },
+      { name: "Fruit", total: 0 },
+      { name: "Protein", total: 0 },
+      { name: "Dairy", total: 0 },
+      { name: "Sweets", total: 0 }
+    ];
+
+    let categories = [];
+
+    function todayString() {
+      const now = new Date();
+      return now.getFullYear() + "-" +
+        String(now.getMonth() + 1).padStart(2, "0") + "-" +
+        String(now.getDate()).padStart(2, "0");
+    }
+
+    function cloneDefaults() {
+      return defaultCategories.map(c => ({ ...c }));
+    }
+
+    function loadData() {
+      const savedDate = localStorage.getItem(DATE_KEY);
+      const today = todayString();
+
+      if (savedDate !== today) {
+        categories = cloneDefaults();
+        saveData();
+        return;
+      }
+
+      const saved = localStorage.getItem(STORAGE_KEY);
+
+      if (saved) {
+        try {
+          categories = JSON.parse(saved);
+        } catch {
+          categories = cloneDefaults();
+          saveData();
+        }
+      } else {
+        categories = cloneDefaults();
+        saveData();
+      }
+    }
+
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(categories));
+      localStorage.setItem(DATE_KEY, todayString());
+    }
+
+    function format(value) {
+      return Number(value).toFixed(2);
+    }
+
+    function updateCategory(index, amount) {
+      categories[index].total += amount;
+
+      if (categories[index].total < 0) {
+        categories[index].total = 0;
+      }
+
+      saveData();
+      render();
+    }
+
+    function resetAll() {
+      categories = categories.map(c => ({ ...c, total: 0 }));
+      saveData();
+      render();
+    }
+
+    function grandTotal() {
+      return categories.reduce((sum, c) => sum + c.total, 0);
+    }
+
+    function render() {
+      const app = document.getElementById("app");
+
+      app.innerHTML = `
+        ${categories.map((category, index) => `
+          <div class="card">
+            <div class="row">
+              <div class="name">${category.name}</div>
+              <div class="total">${format(category.total)}</div>
+            </div>
+
+            <div class="button-row">
+              <button class="plus" onclick="updateCategory(${index}, 0.25)">+¼</button>
+              <button class="plus" onclick="updateCategory(${index}, ${1/3})">+⅓</button>
+              <button class="plus" onclick="updateCategory(${index}, 0.5)">+½</button>
+              <button class="plus" onclick="updateCategory(${index}, 1)">+1</button>
+            </div>
+
+            <div class="button-row">
+              <button class="minus" onclick="updateCategory(${index}, -0.25)">−¼</button>
+              <button class="minus" onclick="updateCategory(${index}, ${-(1/3)})">−⅓</button>
+              <button class="minus" onclick="updateCategory(${index}, -0.5)">−½</button>
+              <button class="minus" onclick="updateCategory(${index}, -1)">−1</button>
+            </div>
+          </div>
+        `).join("")}
+
+        <div class="card summary">
+          <h2>Total Portions</h2>
+          <div class="grand-total">${format(grandTotal())}</div>
+          <button class="reset-btn" onclick="resetAll()">Reset All</button>
+          <div class="note">Works offline after first load. Data is stored on this device.</div>
+        </div>
+      `;
+    }
+
+    loadData();
+    render();
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./service-worker.js")
+          .catch(err => console.log("Service worker registration failed:", err));
+      });
+    }
+  </script>
+</body>
+</html>
